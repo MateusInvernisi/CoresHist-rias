@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "653055601532",
+    "project_id": "coreshistoriasdb",
+    "storage_bucket": "coreshistoriasdb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653055601532:android:3eaf49534fe1d0a70a52f9",
+        "android_client_info": {
+          "package_name": "com.example.cores_historias_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "653055601532-fcu4igm2n9q5od7qlifcb0tldkps32sl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cores_historias_app",
+            "certificate_hash": "a50b2f772703bfea1b4bb1ce3fb8cf07d38efd79"
+          }
+        },
+        {
+          "client_id": "653055601532-udodkfvo8cktrthagas7rogjbamuoiam.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5U3Ph0LO4Ma_zs7hjDHF4uN8HQnaufe4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "653055601532-udodkfvo8cktrthagas7rogjbamuoiam.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
