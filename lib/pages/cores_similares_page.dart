@@ -5,43 +5,68 @@ import 'package:latlong2/latlong.dart';
 import '../models/story.dart';
 import '../services/stories_service.dart';
 import '../services/auth_service.dart';
-import 'story_formulario_page.dart';
-import 'story_lista_page.dart';
 import 'story_detalhes_page.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class PaletaSimilarPage extends StatefulWidget {
+  final StoryModel historiaBase;
+
+  const PaletaSimilarPage({super.key, required this.historiaBase});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<PaletaSimilarPage> createState() => _MapaCoresSimilaresPageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final _storiesService = StoriesService();
-  final _authService = AuthService();
+class _MapaCoresSimilaresPageState extends State<PaletaSimilarPage> {
+  final _servicoHistorias = StoriesService();
+  final _servicoAutenticacao = AuthService();
 
-  /// Abre a página de formulário para criação de um novo story.
-  void _abrirNovoStory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const StoryFormularioPage(),
-      ),
-    );
+  /// Converte uma cor hexadecimal em um objeto [Color].
+  Color? _converterHexParaCor(String hex) {
+    var s = hex.trim().toUpperCase();
+    if (s.isEmpty) return null;
+    if (!s.startsWith('#')) s = '#$s';
+    if (s.length != 7) return null;
+
+    try {
+      final value = int.parse('FF${s.substring(1)}', radix: 16);
+      return Color(value);
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Abre a página que lista os stories associados ao usuário.
-  void _abrirListaStories() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const StoryListaPage(),
-      ),
-    );
+  /// Mede quão semelhantes duas cores são.
+  int _distanciaQuadradaCores(Color a, Color b) {
+    final dr = a.red - b.red;
+    final dg = a.green - b.green;
+    final db = a.blue - b.blue;
+    return dr * dr + dg * dg + db * db;
   }
 
-  /// Abre a página de detalhes para o story selecionado.
-  void _abrirDetalheStory(StoryModel story) {
+  /// Identifica a cor predominante da paleta.
+  Color? _obterCorPredominante(List<String> paletaHex) {
+    for (final hex in paletaHex) {
+      final c = _converterHexParaCor(hex);
+      if (c != null) return c;
+    }
+    return null;
+  }
+
+  /// Compara as cores predominantes usando a distância de cor e um limiar máximo.
+  bool _paletasSemelhantes(List<String> a, List<String> b) {
+    final ca = _obterCorPredominante(a);
+    final cb = _obterCorPredominante(b);
+
+    if (ca == null || cb == null) return false;
+
+    const distanciaMaximaQuadrada = 900;
+
+    final dist2 = _distanciaQuadradaCores(ca, cb);
+    return dist2 <= distanciaMaximaQuadrada;
+  }
+
+  /// Abre a página de detalhes para a história informada usando navegação por [Navigator.push].
+  void _abrirDetalheHistoria(StoryModel story) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -50,26 +75,21 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Realiza o logout do usuário
-  void _logout() async {
-    await _authService.signOut();
-  }
-
-  /// Exibe todas as histórias localizadas no mesmo ponto do mapa.
-  void _abrirStoriesNoLocal(
+  /// Exibe todas os stories que estão no mesmo ponto do mapa que a história tocada.
+  void _abrirHistoriasNoLocal(
       StoryModel historiaTocada,
       List<StoryModel> todasHistorias,
       ) {
-    const eps = 0.0001;
+    const precisao = 0.0001;
 
     final historiasMesmoLocal = todasHistorias.where((s) {
-      final sameLat = (s.latitude - historiaTocada.latitude).abs() < eps;
-      final sameLng = (s.longitude - historiaTocada.longitude).abs() < eps;
-      return sameLat && sameLng;
+      final mesmaLat = (s.latitude - historiaTocada.latitude).abs() < precisao;
+      final mesmaLng = (s.longitude - historiaTocada.longitude).abs() < precisao;
+      return mesmaLat && mesmaLng;
     }).toList();
 
     if (historiasMesmoLocal.length <= 1) {
-      _abrirDetalheStory(historiaTocada);
+      _abrirDetalheHistoria(historiaTocada);
       return;
     }
 
@@ -108,11 +128,11 @@ class _HomePageState extends State<HomePage> {
                   itemBuilder: (context, index) {
                     final story = historiasMesmoLocal[index];
 
-                    final hasImage = story.imageUrl.isNotEmpty &&
+                    final temImagem = story.imageUrl.isNotEmpty &&
                         story.imageUrl != 'web-placeholder-image';
 
                     return ListTile(
-                      leading: hasImage
+                      leading: temImagem
                           ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
@@ -151,14 +171,9 @@ class _HomePageState extends State<HomePage> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        'Lat: ${story.latitude.toStringAsFixed(4)}, '
-                            'Lng: ${story.longitude.toStringAsFixed(4)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
                       onTap: () {
                         Navigator.pop(context);
-                        _abrirDetalheStory(story);
+                        _abrirDetalheHistoria(story);
                       },
                     );
                   },
@@ -171,30 +186,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Constrói a interface da página inicial com o mapa e os marcadores de stories.
+  /// Constrói a interface do mapa com as histórias filtradas semelhantes
   @override
   Widget build(BuildContext context) {
-    final user = _authService.currentUser;
-    final center = const LatLng(-28.2600, -52.4100);
+    final user = _servicoAutenticacao.currentUser;
+    final historiaBase = widget.historiaBase;
+
+    final center = LatLng(historiaBase.latitude, historiaBase.longitude);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cores & Histórias'),
-        actions: [
-          IconButton(
-            tooltip: 'Lista de stories',
-            onPressed: _abrirListaStories,
-            icon: const Icon(Icons.list_alt),
-          ),
-          IconButton(
-            tooltip: 'Sair',
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
+        title: const Text('Mapa – paleta parecida'),
       ),
       body: StreamBuilder<List<StoryModel>>(
-        stream: _storiesService.getStoriesStream(),
+        stream: _servicoHistorias.getStoriesStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -211,63 +216,85 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          final stories = snapshot.data ?? [];
+          final todasHistorias = snapshot.data ?? [];
 
-          if (stories.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  user == null
-                      ? 'Nenhuma história encontrada.\nEntre ou cadastre-se para começar a criar histórias no mapa.'
-                      : 'Nenhuma história encontrada.\nToque no botão abaixo para criar a primeira história.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            );
-          }
-
-          final markers = stories.map((story) {
-            final point = LatLng(story.latitude, story.longitude);
-
-            final hasImage = story.imageUrl.isNotEmpty &&
-                story.imageUrl != 'web-placeholder-image';
-
-            return Marker(
-              point: point,
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              child: GestureDetector(
-                onTap: () {
-                  _abrirStoriesNoLocal(story, stories);
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: hasImage
-                        ? Colors.teal.withOpacity(0.85)
-                        : Colors.blueGrey.withOpacity(0.85),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    hasImage ? Icons.image : Icons.location_on,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+          final historiasFiltradas = todasHistorias.where((historia) {
+            if (historia.id == historiaBase.id) return false;
+            return _paletasSemelhantes(
+              historiaBase.palette,
+              historia.palette,
             );
           }).toList();
+
+          final marcadores = <Marker>[
+            Marker(
+              point: center,
+              width: 60,
+              height: 60,
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Selecionada',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade600.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.push_pin,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ...historiasFiltradas.map((historia) {
+              final point = LatLng(historia.latitude, historia.longitude);
+
+              return Marker(
+                point: point,
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onTap: () {
+                    _abrirHistoriasNoLocal(historia, todasHistorias);
+                  },
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.85),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.location_on,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ];
 
           return Column(
             children: [
@@ -285,11 +312,10 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Toque em um ponto do mapa para ver as histórias naquele local.\n'
-                              'Use o botão abaixo para criar novas histórias.',
+                          'Stories com paleta parecida\nà imagem selecionada',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -300,7 +326,7 @@ class _HomePageState extends State<HomePage> {
                 child: FlutterMap(
                   options: MapOptions(
                     initialCenter: center,
-                    initialZoom: 13,
+                    initialZoom: 15.5,
                     maxZoom: 18,
                   ),
                   children: [
@@ -310,7 +336,7 @@ class _HomePageState extends State<HomePage> {
                       userAgentPackageName: 'com.example.app',
                     ),
                     MarkerLayer(
-                      markers: markers,
+                      markers: marcadores,
                     ),
                   ],
                 ),
@@ -318,11 +344,6 @@ class _HomePageState extends State<HomePage> {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _abrirNovoStory,
-        icon: const Icon(Icons.add),
-        label: const Text('Novo story'),
       ),
     );
   }

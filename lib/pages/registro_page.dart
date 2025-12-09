@@ -2,22 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+/// Página para criação de uma nova conta.
+class RegistroPage extends StatefulWidget {
+  const RegistroPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<RegistroPage> createState() => _RegistroPagePageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+/// Responsável por gerenciar formulário e validações.
+class _RegistroPagePageState extends State<RegistroPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  final _authService = AuthService();
+  final _servicoAutenticacao  = AuthService();
 
-  bool _loading = false;
+  bool _carregando = false;
   String? _error;
 
+  /// Descarta os controladores de texto quando cancelado.
   @override
   void dispose() {
     _emailController.dispose();
@@ -26,15 +29,17 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  InputDecoration _fieldDecoration(String label) {
+  /// Design utilizado nos campos do formulário de registro.
+  InputDecoration _fieldDecoration(String rotulo) {
     return InputDecoration(
-      labelText: label,
+      labelText: rotulo,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       filled: true,
       fillColor: Colors.white,
     );
   }
 
+  /// Criação de conta.
   Future<void> _register() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -59,16 +64,14 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     setState(() {
-      _loading = true;
+      _carregando = true;
     });
 
     try {
-      // ajuste o nome deste método se no seu AuthService for diferente
-      await _authService.register(email, password);
+      await _servicoAutenticacao .register(email, password);
 
       if (!mounted) return;
 
-      // Depois de registrar, volta pra tela de login
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -78,16 +81,18 @@ class _RegisterPageState extends State<RegisterPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _loading = false;
+          _carregando = false;
         });
       }
     }
   }
 
-  void _goBackToLogin() {
+  /// Volta para a tela de login.
+  void _VoltarParaLogin() {
     Navigator.pop(context);
   }
 
+  /// Interface de registro com formulário e botão de criação de conta.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +126,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       textAlign: TextAlign.center,
                       style: Theme.of(context)
                           .textTheme
-                          .headlineMedium
+                          .headlineSmall
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
@@ -168,8 +173,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: _loading ? null : _register,
-                        child: _loading
+                        onPressed: _carregando ? null : _register,
+                        child: _carregando
                             ? const SizedBox(
                           height: 18,
                           width: 18,
@@ -184,7 +189,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     // VOLTAR PARA LOGIN
                     TextButton(
-                      onPressed: _goBackToLogin,
+                      onPressed: _VoltarParaLogin,
                       child: const Text('Já tenho uma conta'),
                     ),
                   ],

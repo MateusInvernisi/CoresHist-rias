@@ -19,19 +19,19 @@ class CoresHistoriasApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFFEC008C); // magenta
-    const secondary = Color(0xFF4C6FFF); // azulzinho
-    const bg = Color(0xFFFFF4FA); // fundo rosinha bem claro
+    const primeira = Color(0xFFEC008C);
+    const secundaria = Color(0xFF4C6FFF);
+    const fundo = Color(0xFFFFF4FA);
 
     final baseTheme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
-        primary: primary,
-        secondary: secondary,
-        background: bg,
+        seedColor: primeira,
+        primary: primeira,
+        secondary: secundaria,
+        background: fundo,
       ),
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: fundo,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -44,7 +44,7 @@ class CoresHistoriasApp extends StatelessWidget {
         iconTheme: IconThemeData(color: Colors.black87),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: primary,
+        backgroundColor: primeira,
         foregroundColor: Colors.white,
         shape: StadiumBorder(),
       ),

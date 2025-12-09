@@ -6,8 +6,7 @@ class StoriesService {
   final FirebaseFirestore _bancoDados = FirebaseFirestore.instance;
   final String _colecao = 'stories';
 
-  /// Retorna um stream com a lista de histórias,
-  /// ordenadas do mais recente para o mais antigo.
+  /// Retorna lista de histórias, ordenando do mais recente para o mais antigo.
   Stream<List<StoryModel>> obterFluxoHistorias() {
     return _bancoDados
         .collection(_colecao)

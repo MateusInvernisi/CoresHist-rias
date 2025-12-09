@@ -10,35 +10,38 @@ import '../services/stories_service.dart';
 import '../services/location_service.dart';
 import '../services/storage_service.dart';
 
-class StoryFormPage extends StatefulWidget {
+class StoryFormularioPage extends StatefulWidget {
   final StoryModel? story;
 
-  const StoryFormPage({super.key, this.story});
+  const StoryFormularioPage({super.key, this.story});
 
+  /// Cria página de formulário de story.
   @override
-  State<StoryFormPage> createState() => _StoryFormPageState();
+  State<StoryFormularioPage> createState() => _StoryFormularioPageState();
 }
 
-class _StoryFormPageState extends State<StoryFormPage> {
+/// Estado da página de formulário.
+class _StoryFormularioPageState extends State<StoryFormularioPage> {
   final _textController = TextEditingController();
   final _latController = TextEditingController();
-  final _lngController = TextEditingController();
+  final _longController = TextEditingController();
 
-  bool _loading = false;
-  bool _gettingLocation = false;
-  bool _generatingPalette = false;
+  bool _carregando = false;
+  bool _obterLocalizacao  = false;
+  bool _gerarPaleta  = false;
 
   final _storiesService = StoriesService();
   final _authService = AuthService();
   final _locationService = LocationService();
   final _storageService = StorageService();
-  final _imagePicker = ImagePicker();
+  final _seletorImagem = ImagePicker();
 
   XFile? _imageFile;
   Uint8List? _imageBytes;
-  String? _existingImageUrl;
+  String? _urlImagemExistente;
   List<String> _paletteHex = [];
 
+  /// Inicializa o estado preenchendo os campos ao editar um story ou obtendo a localização atual ao criar um novo.
   @override
   void initState() {
     super.initState();
@@ -46,73 +49,77 @@ class _StoryFormPageState extends State<StoryFormPage> {
       final story = widget.story!;
       _textController.text = story.text;
       _latController.text = story.latitude.toString();
-      _lngController.text = story.longitude.toString();
-      _existingImageUrl = story.imageUrl;
+      _longController.text = story.longitude.toString();
+      _urlImagemExistente = story.imageUrl;
       _paletteHex = List<String>.from(story.palette);
     } else {
       _latController.text = '0.0';
-      _lngController.text = '0.0';
-      _fillCurrentLocation(); // tenta pegar localização assim que abre
+      _longController.text = '0.0';
+      _preencherLocalizacaoAtual();
     }
   }
 
-  Future<void> _fillCurrentLocation() async {
-    setState(() => _gettingLocation = true);
+  /// Obtém a localização atual do dispositivo e preenche os campos de latitude e longitude.
+  Future<void> _preencherLocalizacaoAtual() async {
+    setState(() => _obterLocalizacao  = true);
     try {
-      final pos = await _locationService.getCurrentPosition();
-      _latController.text = pos.latitude.toString();
-      _lngController.text = pos.longitude.toString();
+      final posicao  = await _locationService.getCurrentPosition();
+      _latController.text = posicao.latitude.toString();
+      _longController.text = posicao.longitude.toString();
     } catch (e) {
       debugPrint('[StoryForm] Erro ao pegar localização inicial: $e');
     } finally {
       if (mounted) {
-        setState(() => _gettingLocation = false);
+        setState(() => _obterLocalizacao  = false);
       }
     }
   }
 
+  /// Descarta os controladores ao cancelar.
   @override
   void dispose() {
     _textController.dispose();
     _latController.dispose();
-    _lngController.dispose();
+    _longController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picked = await _imagePicker.pickImage(
+  /// Abre o seletor de imagens da galeria.
+  Future<void> __selecionarImagem() async {
+    final imagemSelecionada  = await _seletorImagem.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1600,
       imageQuality: 90,
     );
 
-    if (picked == null) return;
+    if (imagemSelecionada  == null) return;
 
-    final bytes = await picked.readAsBytes();
+    final bytes = await imagemSelecionada.readAsBytes();
 
     setState(() {
-      _imageFile = picked;
+      _imageFile = imagemSelecionada ;
       _imageBytes = bytes;
-      _existingImageUrl = null; // vamos usar a nova imagem
-      _paletteHex = []; // resetar paleta para gerar de novo
+      _urlImagemExistente = null;
+      _paletteHex = [];
     });
 
-    await _generatePaletteFromBytes(bytes);
+    await _gerarPaletaAPartirDosBytes(bytes);
   }
 
-  Future<void> _generatePaletteFromBytes(Uint8List bytes) async {
-    setState(() => _generatingPalette = true);
+  /// Gera automaticamente a paleta de cores a partir dos bytes da imagem selecionada usando o PaletteGenerator.
+  Future<void> _gerarPaletaAPartirDosBytes(Uint8List bytes) async {
+    setState(() => _gerarPaleta  = true);
 
     try {
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
+      final geradorPaleta  = await PaletteGenerator.fromImageProvider(
         MemoryImage(bytes),
         maximumColorCount: 6,
       );
 
-      final colors = paletteGenerator.colors.toList();
+      final cores = geradorPaleta .colors.toList();
 
       setState(() {
-        _paletteHex = colors.map((color) {
+        _paletteHex = cores.map((color) {
           final value = color.value & 0xFFFFFF;
           return '#${value.toRadixString(16).padLeft(6, '0').toUpperCase()}';
         }).toList();
@@ -125,11 +132,12 @@ class _StoryFormPageState extends State<StoryFormPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _generatingPalette = false);
+        setState(() => _gerarPaleta  = false);
       }
     }
   }
 
+  /// Valida os dados do formulário e realiza o processo de salvar ou atualizar o story no Firestore e no Storage.
   Future<void> _save() async {
     final user = _authService.currentUser;
     if (user == null) {
@@ -148,47 +156,43 @@ class _StoryFormPageState extends State<StoryFormPage> {
       return;
     }
 
-    final editing = widget.story != null;
+    final editando = widget.story != null;
 
-    if (!editing && _imageBytes == null && (_existingImageUrl == null)) {
+    if (!editando && _imageBytes == null && (_urlImagemExistente == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione uma imagem para o story.')),
       );
       return;
     }
 
-    // Se latitude/longitude ainda estiverem 0.0, tenta pegar localização agora
-    if ((_latController.text == '0.0' || _lngController.text == '0.0') &&
-        !_gettingLocation) {
-      await _fillCurrentLocation();
+    if ((_latController.text == '0.0' || _longController.text == '0.0') &&
+        !_obterLocalizacao ) {
+      await _preencherLocalizacaoAtual();
     }
 
     final lat = double.tryParse(_latController.text.trim()) ?? 0.0;
-    final lng = double.tryParse(_lngController.text.trim()) ?? 0.0;
+    final lng = double.tryParse(_longController.text.trim()) ?? 0.0;
 
-    // Monta um nome amigável do autor
     final displayName = user.displayName?.trim();
     final email = user.email ?? '';
     final fallbackName = (displayName != null && displayName.isNotEmpty)
         ? displayName
         : (email.isNotEmpty ? email.split('@').first : 'Usuário');
 
-    setState(() => _loading = true);
-    debugPrint('[_save] Iniciando save. editing=$editing');
+    setState(() => _carregando = true);
+    debugPrint('[_save] Iniciando save. editing=$editando');
 
     try {
       String imageUrl;
       List<String> paletteToSave;
 
-      // 1) Temos imagem nova em memória
       if (_imageBytes != null) {
         debugPrint(
             '[_save] Temos _imageBytes. Tamanho: ${_imageBytes!.length} bytes');
 
-        // Garante que existe paleta
         if (_paletteHex.isEmpty) {
           debugPrint('[_save] Paleta vazia, gerando...');
-          await _generatePaletteFromBytes(_imageBytes!);
+          await _gerarPaletaAPartirDosBytes(_imageBytes!);
         }
         paletteToSave = List<String>.from(_paletteHex);
 
@@ -199,7 +203,7 @@ class _StoryFormPageState extends State<StoryFormPage> {
         );
         debugPrint('[_save] Upload OK. URL: $imageUrl');
       } else {
-        // 2) Sem nova imagem: usa a existente (edição)
+
         debugPrint('[_save] Usando imagem existente (edição).');
         imageUrl = widget.story!.imageUrl;
         paletteToSave = _paletteHex.isNotEmpty
@@ -207,20 +211,19 @@ class _StoryFormPageState extends State<StoryFormPage> {
             : List<String>.from(widget.story!.palette);
       }
 
-      // 3) Criar ou atualizar story no Firestore
-      if (!editing) {
+      if (!editando) {
         debugPrint('[_save] Criando novo story...');
 
         final story = StoryModel(
           id: '',
           userId: user.uid,
-          authorName: fallbackName, // ✅ AGORA COM authorName
+          autor: fallbackName,
           imageUrl: imageUrl,
           text: text,
           latitude: lat,
           longitude: lng,
           palette: paletteToSave,
-          createdAt: DateTime.now(),
+          criadoEm: DateTime.now(),
         );
 
         await _storiesService.createStory(story);
@@ -233,7 +236,6 @@ class _StoryFormPageState extends State<StoryFormPage> {
           latitude: lat,
           longitude: lng,
           palette: paletteToSave,
-          // authorName mantém o já salvo; se quisesse mudar, poderia passar aqui
         );
         await _storiesService.updateStory(updated);
         debugPrint('[_save] Story atualizado com sucesso.');
@@ -251,12 +253,13 @@ class _StoryFormPageState extends State<StoryFormPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() => _carregando = false);
       }
     }
   }
 
-  Widget _buildImagePreview() {
+  /// Constrói a prévia visual da imagem selecionada, exibindo a foto, o placeholder existente ou um aviso caso não haja imagem.
+  Widget _construirPreviaImagem() {
     Widget child;
 
     if (_imageBytes != null) {
@@ -265,9 +268,9 @@ class _StoryFormPageState extends State<StoryFormPage> {
         fit: BoxFit.cover,
         width: double.infinity,
       );
-    } else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty) {
+    } else if (_urlImagemExistente != null && _urlImagemExistente!.isNotEmpty) {
       child = Image.network(
-        _existingImageUrl!,
+        _urlImagemExistente!,
         fit: BoxFit.cover,
         width: double.infinity,
         errorBuilder: (_, __, ___) {
@@ -309,7 +312,8 @@ class _StoryFormPageState extends State<StoryFormPage> {
     );
   }
 
-  Widget _buildPalettePreview() {
+  /// Exibe a prévia da paleta de cores gerada ou uma mensagem orientando que ela será criada a partir da imagem.
+  Widget _construirPreviaPaleta() {
     if (_paletteHex.isEmpty) {
       return const Text(
         'A paleta de cores será gerada automaticamente\n'
@@ -340,6 +344,7 @@ class _StoryFormPageState extends State<StoryFormPage> {
     );
   }
 
+  /// Constrói a interface da página com a imagem, paleta de cores, campo de texto e botão para salvar o story.
   @override
   Widget build(BuildContext context) {
     final editing = widget.story != null;
@@ -352,18 +357,18 @@ class _StoryFormPageState extends State<StoryFormPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildImagePreview(),
+            _construirPreviaImagem(),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
-                onPressed: _loading ? null : _pickImage,
+                onPressed: _carregando ? null : __selecionarImagem,
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Selecionar imagem'),
               ),
             ),
             const SizedBox(height: 8),
-            if (_generatingPalette)
+            if (_gerarPaleta )
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -380,7 +385,7 @@ class _StoryFormPageState extends State<StoryFormPage> {
                 ),
               )
             else
-              _buildPalettePreview(),
+              _construirPreviaPaleta(),
             const SizedBox(height: 24),
             TextField(
               controller: _textController,
@@ -394,8 +399,8 @@ class _StoryFormPageState extends State<StoryFormPage> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _loading ? null : _save,
-                child: _loading
+                onPressed: _carregando ? null : _save,
+                child: _carregando
                     ? const SizedBox(
                   height: 18,
                   width: 18,

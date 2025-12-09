@@ -1,55 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../models/story.dart';
-import 'cores_similares.dart';
+import 'cores_similares_page.dart';
 
-class StoryDetailPage extends StatelessWidget {
+class StoryDetalhesPage extends StatelessWidget {
   final StoryModel story;
 
-  const StoryDetailPage({super.key, required this.story});
+  const StoryDetalhesPage({super.key, required this.story});
 
-  Widget _buildImage() {
-    final hasImage =
+  /// Monta o widget da imagem principal do story.
+  Widget _montarImage() {
+    final temImage =
         story.imageUrl.isNotEmpty && story.imageUrl != 'web-placeholder-image';
 
-    if (!hasImage) {
+    if (!temImage) {
       return Container(
         height: 220,
-        width: double.infinity,
-        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300),
         ),
-        child: const Text('Imagem do story'),
+        child: const Center(
+          child: Text(
+            'Nenhuma imagem disponível',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+            ),
+          ),
+        ),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        story.imageUrl,
-        height: 220,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return Container(
-            height: 220,
-            width: double.infinity,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(16),
+      child: AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Image.network(
+          story.imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return Container(
               color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text('Não foi possível carregar a imagem'),
-          );
-        },
+              alignment: Alignment.center,
+              child: const Text('Não foi possível carregar a imagem'),
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildPalette() {
+  /// Paleta de cores do story.
+  Widget _montarPaleta() {
     if (story.palette.isEmpty) {
       return const Text(
         'Sem paleta registrada.',
@@ -79,7 +83,8 @@ class StoryDetailPage extends StatelessWidget {
     );
   }
 
-  void _openSimilarPaletteMap(BuildContext context) {
+  /// Abre mapa com stories que possuem paleta de cores semelhante a este story.
+  void _abrirMapaPaletaSimilar(BuildContext context) {
     if (story.palette.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -93,18 +98,17 @@ class StoryDetailPage extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SimilarPaletteMapPage(baseStory: story),
+        builder: (_) => PaletaSimilarPage(historiaBase: story),
       ),
     );
   }
 
+  /// Interface da página de detalhes do story.
   @override
   Widget build(BuildContext context) {
-    final loc =
-        'Localização: ${story.latitude.toStringAsFixed(5)}, ${story.longitude.toStringAsFixed(5)}';
-    final dateStr = DateFormat('dd/MM/yy HH:mm').format(story.createdAt);
-    final author = story.authorName.isNotEmpty
-        ? story.authorName
+    final dataFormatada = DateFormat('dd/MM/yy HH:mm').format(story.criadoEm);
+    final autor = story.autor.isNotEmpty
+        ? story.autor
         : 'Autor desconhecido';
 
     return Scaffold(
@@ -116,7 +120,55 @@ class StoryDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildImage(),
+            _montarImage(),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.person,
+                    size: 20,
+                    color: Colors.black54,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      autor,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.access_time,
+                    size: 18,
+                    color: Colors.black45,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    dataFormatada,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -134,6 +186,14 @@ class StoryDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'História',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     story.text,
                     style: const TextStyle(
@@ -141,46 +201,46 @@ class StoryDetailPage extends StatelessWidget {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    author,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateStr,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Paleta de cores:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            _buildPalette(),
-            const SizedBox(height: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Paleta de cores',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _montarPaleta(),
+                  const SizedBox(height: 16),
 
-            // 🔹 Botão para ver no mapa apenas stories com paleta parecida
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _openSimilarPaletteMap(context),
-                icon: const Icon(Icons.palette),
-                label: const Text('Ver stories com paleta parecida no mapa'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _abrirMapaPaletaSimilar(context),
+                      icon: const Icon(Icons.palette),
+                      label: const Text('Ver stories com paleta parecida no mapa'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

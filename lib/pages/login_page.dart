@@ -11,30 +11,32 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _authService = AuthService();
+  final _senhaController = TextEditingController();
+  final _servicoAutenticacao = AuthService();
 
-  bool _loading = false;
-  bool _googleLoading = false;
+  bool _carregando = false;
+  bool _googleCarregando = false;
   String? _error;
 
+  /// Descarta os controladores quando a tela de login é cancelada.
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
+    _senhaController.dispose();
     super.dispose();
   }
 
+  /// Realiza o login usando e-mail e senha
   Future<void> _login() async {
     setState(() {
-      _loading = true;
+      _carregando = true;
       _error = null;
     });
 
     try {
-      await _authService.login(
+      await _servicoAutenticacao.login(
         _emailController.text.trim(),
-        _passwordController.text.trim(),
+        _senhaController.text.trim(),
       );
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
@@ -45,19 +47,20 @@ class _LoginPageState extends State<LoginPage> {
       });
     } finally {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() => _carregando = false);
       }
     }
   }
 
-  Future<void> _loginWithGoogle() async {
+  /// Realiza o login utilizando a conta Google.
+  Future<void> _entrarComGoogle() async {
     setState(() {
-      _googleLoading = true;
+      _googleCarregando = true;
       _error = null;
     });
 
     try {
-      await _authService.signInWithGoogle();
+      await _servicoAutenticacao.signInWithGoogle();
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
@@ -67,20 +70,22 @@ class _LoginPageState extends State<LoginPage> {
       });
     } finally {
       if (mounted) {
-        setState(() => _googleLoading = false);
+        setState(() => _googleCarregando = false);
       }
     }
   }
 
-  void _goToRegister() {
+  /// Navega para a página de registro para criar uma nova conta.
+  void _irParaRegistro() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const RegisterPage(),
+        builder: (_) => const RegistroPage(),
       ),
     );
   }
 
+  /// Design utilizado nos campos de texto do formulário de login.
   InputDecoration _fieldDecoration(String label) {
     return InputDecoration(
       labelText: label,
@@ -90,6 +95,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// Interface da tela de login
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,7 +107,6 @@ class _LoginPageState extends State<LoginPage> {
           image: DecorationImage(
             image: const AssetImage('assets/images/fundo.jpg'),
             fit: BoxFit.cover,
-            // opcional: “lavar” um pouco a imagem pra não brigar com os campos
             colorFilter: ColorFilter.mode(
               Colors.white.withOpacity(0.85),
               BlendMode.srcOver,
@@ -113,93 +118,124 @@ class _LoginPageState extends State<LoginPage> {
           child: Center(
             child: SingleChildScrollView(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 24),
-                    Text(
-                      'Cores & Histórias',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Card(
+                  elevation: 6,
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Cores & Histórias',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Entre para registrar histórias no mapa com as cores das suas fotos.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // E-MAIL
+                        TextField(
+                          controller: _emailController,
+                          decoration: _fieldDecoration('E-mail'),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // SENHA
+                        TextField(
+                          controller: _senhaController,
+                          decoration: _fieldDecoration('Senha'),
+                          obscureText: true,
+                        ),
+
+                        if (_error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        // BOTÃO ENTRAR (EMAIL/SENHA)
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _carregando ? null : _login,
+                            child: _carregando
+                                ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                                : const Text('Entrar'),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // BOTÃO ENTRAR COM GOOGLE
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed:
+                            _googleCarregando ? null : _entrarComGoogle,
+                            icon: _googleCarregando
+                                ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                                : const Icon(Icons.login),
+                            label: Text(
+                              _googleCarregando
+                                  ? 'Entrando...'
+                                  : 'Entrar com Google',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // LINK PARA REGISTRO
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Ainda não tem conta?'),
+                            TextButton(
+                              onPressed: _irParaRegistro,
+                              child: const Text('Criar uma conta'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Crie stories pela cidade e se conecte pelas cores.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-
-                    // EMAIL
-                    TextField(
-                      controller: _emailController,
-                      decoration: _fieldDecoration('E-mail'),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // SENHA
-                    TextField(
-                      controller: _passwordController,
-                      decoration: _fieldDecoration('Senha'),
-                      obscureText: true,
-                    ),
-
-                    if (_error != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    // BOTÃO ENTRAR (EMAIL/SENHA)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _loading ? null : _login,
-                        child: _loading
-                            ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : const Text('Entrar'),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // BOTÃO ENTRAR COM GOOGLE
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed:
-                        _googleLoading ? null : _loginWithGoogle,
-                        icon: _googleLoading
-                            ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : const Icon(Icons.g_mobiledata, size: 28),
-                        label: const Text('Entrar com Google'),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // CRIAR CONTA
-                    TextButton(
-                      onPressed: _goToRegister,
-                      child: const Text('Criar uma conta'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

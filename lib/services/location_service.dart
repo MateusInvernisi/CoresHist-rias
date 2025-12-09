@@ -1,4 +1,3 @@
-// lib/services/location_service.dart
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -9,7 +8,6 @@ class LocationService {
     // Verifica se o serviço de localização está ativado
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Aqui você pode lançar uma exceção ou tratar como quiser
       throw Exception(
           'Serviço de localização desativado. Ative o GPS e tente novamente.');
     }
@@ -30,7 +28,6 @@ class LocationService {
           'Permissão de localização negada permanentemente. Habilite nas configurações do sistema.');
     }
 
-    // Se chegou aqui, pode pegar a posição
     return Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
